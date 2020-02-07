@@ -13,7 +13,6 @@ CREATE TABLE SCREENINGS (
     PRIMARY KEY (start_time)
 )
 
-
 CREATE TABLE MOVIES (
     title TEXT,
     p_year TEXT,
@@ -33,6 +32,6 @@ CREATE TABLE TICKETS (
 CREATE TABLE CUSTOMERS (
     username TEXT,
     full_name TEXT,
-    password ,
+    password TEXT,
     PRIMARY KEY (username)
 )
