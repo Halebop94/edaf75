@@ -13,20 +13,20 @@ PRAGMA foreign_keys=ON;
 
 --Create tables
 CREATE TABLE THEATRES (
-    name TEXT,
+    theatre_name TEXT,
     capacity INTEGER,
-    PRIMARY KEY (name)
+    PRIMARY KEY (theatre_name)
 );
 
 CREATE TABLE SCREENINGS (
     uuid TEXT DEFAULT (LOWER(HEX(RANDOMBLOB(16)))),
     showing_date DATE,
     start_time TIME,
-    theatre TEXT,
-    movie TEXT,
+    theatre_name TEXT,
+    imdb_key TEXT,
     max_seats INTEGER,
-    FOREIGN KEY (theatre) REFERENCES THEATRES(name),
-    FOREIGN KEY (movie) REFERENCES MOVIES(imdb_key),
+    FOREIGN KEY (theatre_name) REFERENCES THEATRES(theatre_name),
+    FOREIGN KEY (imdb_key) REFERENCES MOVIES(imdb_key),
     PRIMARY KEY (uuid)
 );
 
@@ -57,7 +57,7 @@ CREATE TABLE CUSTOMERS (
 -- Insert data into tables.
 
 INSERT 
-INTO THEATRES(name, capacity)
+INTO THEATRES(theatre_name, capacity)
 VALUES  ("Filmstaden Lund", 120),
         ("Filmstaden Malmö", 200),
         ("Filmstaden Hötorget", 1000);
@@ -71,17 +71,24 @@ VALUES  ("tt4520988", "Frozen 2", '2019', "1h 43min"),
         ("tt0167260", "The Lord of the Rings: The Return of the King", '2003', "3h 21min")
 ;
 INSERT 
-INTO SCREENINGS(showing_date, start_time, theatre, movie, max_seats)
-VALUES  ('2020-03-01', '19:00', "Filmstaden Lund", "tt4520988", 40),
-        ('2020-03-01', '19:00', "Filmstaden Malmö", "tt0105236", 100),
-        ('2020-03-01', '01:00', "Filmstaden Malmö", "tt2527336", 100),
-        ('2020-03-01', '10:00', "Filmstaden Hötorget", "tt0373889", 100),
-        ('2020-03-01', '19:00', "Filmstaden Hötorget", "tt2527336", 300),
-        ('2020-03-03', '23:00', "Filmstaden Hötorget", "tt0167260", 200)
+INTO SCREENINGS(uuid, showing_date, start_time, theatre_name, imdb_key, max_seats)
+VALUES  ("3e532c11625236c837738609f09cb76e", '2020-03-01', '19:00', "Filmstaden Lund", "tt4520988", 40),
+        ("556e29358e83c1e0d0605741aba2b613", '2020-03-01', '19:00', "Filmstaden Malmö", "tt0105236", 100),
+        ("f9c35f6db48b446dc3caf6d80e941479", '2020-03-01', '01:00', "Filmstaden Malmö", "tt2527336", 100),
+        ("74bcbb492ba1b129ae28c5b0d2263c97", '2020-03-01', '10:00', "Filmstaden Hötorget", "tt0373889", 100),
+        ("df20a592ffb474ff6493a7d1319e8972", '2020-03-01', '19:00', "Filmstaden Hötorget", "tt2527336", 300),
+        ("e27d9de6f564b3aa55b82cc947555c9b", '2020-03-03', '23:00', "Filmstaden Hötorget", "tt0167260", 200)
 ;
 
 INSERT 
 INTO CUSTOMERS(username, full_name, password)
 VALUES  ("halebop94", "Hanna Höjbert", "123456"),
         ("frednordell", "Fred Nordell", "123456")
+;
+
+INSERT 
+INTO TICKETS(screening, username)
+VALUES  ("e27d9de6f564b3aa55b82cc947555c9b", "halebop94"),
+        ("e27d9de6f564b3aa55b82cc947555c9b", "frednordell"),
+        ("df20a592ffb474ff6493a7d1319e8972", "halebop94")
 ;
