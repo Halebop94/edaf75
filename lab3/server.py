@@ -150,25 +150,28 @@ def get_movies():
         FROM screenings
         JOIN movies
         USING (imdb_key)
-
-    """)
-    s = [{"imdb_key": imdb_key, "title": title, "year": p_year}
-        for (imdb_key, title, p_year) in c ]
+        JOIN tickets
+        ON screenings.uuid = tickets.screening
+        GROUP BY screening 
+        """)
+    s = [{"performanceId": uuid, "date": showing_date, "startTime": start_time, "theater": theatre_name, "title": title, "year": p_year, "remainingSeats": 30}
+        for (uuid, showing_date, start_time, theatre_name, title, p_year) in c ]
     return Response(content = json.dumps({"data": s}, indent = 4), status_code = 200)
 
-
-
-
-
-
-
-
-@add.get("/performances")
-def buy_tickets():
+@app.post("/tickets")
+def buy_tickets(performance: str, user: str, pwd: str):
     c = conn.cursor()
     c.execute("""
         INSERT
         INTO TICKETS(screening, username)
+        VALUES (?, ?)
 
+    """, [performance, user])
+    conn.commit()
+    c.execute("""
+        SELECT uuid
+        FROM tickets
+        WHERE rowid = last_insert_rowid()
     """)
-    return Response()
+    id = c.fetchone()[0]
+    return Response(content = "/tickets/"+id, status_code = 200)
