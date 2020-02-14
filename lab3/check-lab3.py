@@ -6,7 +6,7 @@ import requests
 
 
 HOST="localhost"
-PORT=7007
+PORT=8000
 
 
 def url(resource):
@@ -29,6 +29,7 @@ def check_ping():
         if r.text.strip() == 'pong':
             print("ping OK")
         else:
+            print(r.text.strip())
             print("Your server seems to be running, but does not return pong on /ping")
     except:
         abort(f'curl -X GET {resource} does not return pong -- is your server running?')
@@ -41,7 +42,7 @@ def check_reset():
         print("reset OK")
     else:
         abort(f'curl -X POST {resource} does not return OK')
-        
+
 
 def check_all_movies():
     try:
