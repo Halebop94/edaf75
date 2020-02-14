@@ -31,14 +31,14 @@ def reset_database():
         """)
     c.execute("""
         CREATE TABLE SCREENINGS (
-            uuid TEXT DEFAULT (LOWER(HEX(RANDOMBLOB(16)))),
+            screeningId TEXT DEFAULT (LOWER(HEX(RANDOMBLOB(16)))),
             showing_date DATE,
             start_time TIME,
             theatre_name TEXT,
             imdb_key TEXT,
             FOREIGN KEY (theatre_name) REFERENCES THEATRES(theatre_name),
             FOREIGN KEY (imdb_key) REFERENCES MOVIES(imdb_key),
-            PRIMARY KEY (uuid)
+            PRIMARY KEY (screeningId)
         );
 
         """)
@@ -54,12 +54,12 @@ def reset_database():
         """)
     c.execute("""
         CREATE TABLE TICKETS (
-            uuid TEXT DEFAULT (LOWER(HEX(RANDOMBLOB(16)))),
-            screening TEXT,
+            ticketID TEXT DEFAULT (LOWER(HEX(RANDOMBLOB(16)))),
+            screeningId TEXT,
             username TEXT,
-            FOREIGN KEY (screening) REFERENCES SCREENINGS(uuid),
+            FOREIGN KEY (screeningId) REFERENCES SCREENINGS(screeningId),
             FOREIGN KEY (username) REFERENCES CUSTOMERS(username),
-            PRIMARY KEY (uuid)
+            PRIMARY KEY (ticketId)
         );
 
 
@@ -143,35 +143,81 @@ def add_performances(imdb: str = '', theater: str = '', date: str = '', time: st
     return Response(content = "/performances/"+id, status_code = 200)
 
 @app.get("/performances")
-def get_movies():
+def get_performances():
     c = conn.cursor()
     c.execute( """
-        SELECT uuid, showing_date, start_time, theatre_name, title, p_year
+        WITH ticket_count AS (
+            SELECT screeningId, count(ticketId) AS bought_tickets
+            FROM screenings
+            LEFT OUTER JOIN tickets
+            USING (screeningId)
+            GROUP BY screeningId
+        )
+        SELECT screeningId, showing_date, start_time, theatre_name, title, p_year, capacity - bought_tickets AS remaining_seats
         FROM screenings
         JOIN movies
         USING (imdb_key)
-        JOIN tickets
-        ON screenings.uuid = tickets.screening
-        GROUP BY screening
+        JOIN ticket_count
+        USING (screeningId)
+        JOIN theatres
+        USING (theatre_name)
         """)
-    s = [{"performanceId": uuid, "date": showing_date, "startTime": start_time, "theater": theatre_name, "title": title, "year": p_year, "remainingSeats": 30}
-        for (uuid, showing_date, start_time, theatre_name, title, p_year) in c ]
+    s = [{"performanceId": screeningId, "date": showing_date, "startTime": start_time, "theater": theatre_name, "title": title, "year": p_year, "remainingSeats": remaining_seats}
+        for (screeningId, showing_date, start_time, theatre_name, title, p_year, remaining_seats) in c ]
     return Response(content = json.dumps({"data": s}, indent = 4), status_code = 200)
 
 @app.post("/tickets")
 def buy_tickets(performance: str, user: str, pwd: str):
     c = conn.cursor()
     c.execute("""
+        SELECT screeningId, capacity - count(ticketId) AS remaining_seats
+        FROM screenings
+        LEFT OUTER JOIN tickets
+        USING (screeningId)
+        JOIN theatres
+        USING (theatre_name)
+        WHERE screeningId = ?
+    """, [performance])
+    remaining_seats = c.fetchone()[1]
+    if(remaining_seats == 0):
+        return Response(content = "No tickets left", status_code = 200)
+    conn.commit()
+    c.execute("""
         INSERT
-        INTO TICKETS(screening, username)
+        INTO TICKETS(screeningId, username)
         VALUES (?, ?)
 
     """, [performance, user])
     conn.commit()
     c.execute("""
-        SELECT uuid
+        SELECT ticketId
         FROM tickets
         WHERE rowid = last_insert_rowid()
     """)
     id = c.fetchone()[0]
     return Response(content = "/tickets/"+id, status_code = 200)
+
+@app.get("/customers/{username}/tickets")
+def see_tickets(username: str):
+    c = conn.cursor()
+    c.execute( """
+        WITH ticket_count AS (
+            SELECT screeningId, count(ticketId) AS bought_tickets
+            FROM screenings
+            LEFT OUTER JOIN tickets
+            USING (screeningId)
+            WHERE username = ?
+            GROUP BY screeningId
+        )
+        SELECT screeningId, showing_date, start_time, theatre_name, title, p_year, bought_tickets
+        FROM screenings
+        JOIN movies
+        USING (imdb_key)
+        JOIN ticket_count
+        USING (screeningId)
+        JOIN theatres
+        USING (theatre_name)
+        """, [username])
+    s = [{"date": showing_date, "startTime": start_time, "theater": theatre_name, "title": title, "year": p_year, "nbrOfTickets": bought_tickets}
+        for (screeningId, showing_date, start_time, theatre_name, title, p_year, bought_tickets) in c ]
+    return Response(content = json.dumps({"data": s}, indent = 4), status_code = 200)
