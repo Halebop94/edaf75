@@ -152,7 +152,7 @@ def get_movies():
         USING (imdb_key)
         JOIN tickets
         ON screenings.uuid = tickets.screening
-        GROUP BY screening 
+        GROUP BY screening
         """)
     s = [{"performanceId": uuid, "date": showing_date, "startTime": start_time, "theater": theatre_name, "title": title, "year": p_year, "remainingSeats": 30}
         for (uuid, showing_date, start_time, theatre_name, title, p_year) in c ]
