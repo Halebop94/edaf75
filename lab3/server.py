@@ -128,12 +128,15 @@ def get_movie_with_imdb_key(imdb_key: str = ''):
 @app.post("/performances")
 def add_performances(imdb: str = '', theater: str = '', date: str = '', time: str = ''):
     c = conn.cursor()
-    c.execute("""
-        INSERT
-        INTO SCREENINGS(showing_date, start_time, theatre_name, imdb_key)
-        VALUES  (?,	?,	?,	?);
-    """, [date, time, theater, imdb])
-    conn.commit()
+    try :
+        c.execute("""
+            INSERT
+            INTO SCREENINGS(showing_date, start_time, theatre_name, imdb_key)
+            VALUES  (?,	?,	?,	?);
+        """, [date, time, theater, imdb])
+        conn.commit()
+    except sqlite3.Error:
+        return Response(content = "No such movie or theater", status_code = 500)
     c.execute("""
         SELECT imdb_key
         FROM screenings
@@ -168,34 +171,37 @@ def get_performances():
 
 @app.post("/tickets")
 def buy_tickets(performance: str, user: str, pwd: str):
-    c = conn.cursor()
-    c.execute("""
-        SELECT screeningId, capacity - count(ticketId) AS remaining_seats
-        FROM screenings
-        LEFT OUTER JOIN tickets
-        USING (screeningId)
-        JOIN theatres
-        USING (theatre_name)
-        WHERE screeningId = ?
-    """, [performance])
-    remaining_seats = c.fetchone()[1]
-    if(remaining_seats == 0):
-        return Response(content = "No tickets left", status_code = 200)
-    conn.commit()
-    c.execute("""
-        INSERT
-        INTO TICKETS(screeningId, username)
-        VALUES (?, ?)
+    try:
+        c = conn.cursor()
+        c.execute("""
+            SELECT screeningId, capacity - count(ticketId) AS remaining_seats
+            FROM screenings
+            LEFT OUTER JOIN tickets
+            USING (screeningId)
+            JOIN theatres
+            USING (theatre_name)
+            WHERE screeningId = ?
+        """, [performance])
+        remaining_seats = c.fetchone()[1]
+        if(remaining_seats == 0):
+            return Response(content = "No tickets left", status_code = 200)
+        conn.commit()
+        c.execute("""
+            INSERT
+            INTO TICKETS(screeningId, username)
+            VALUES (?, ?)
 
-    """, [performance, user])
-    conn.commit()
-    c.execute("""
-        SELECT ticketId
-        FROM tickets
-        WHERE rowid = last_insert_rowid()
-    """)
-    id = c.fetchone()[0]
-    return Response(content = "/tickets/"+id, status_code = 200)
+        """, [performance, user])
+        conn.commit()
+        c.execute("""
+            SELECT ticketId
+            FROM tickets
+            WHERE rowid = last_insert_rowid()
+        """)
+        id = c.fetchone()[0]
+        return Response(content = "/tickets/"+id, status_code = 200)
+    except sqlite3.Error:
+        return Response(content = "Error", status_code = 404)
 
 @app.get("/customers/{username}/tickets")
 def see_tickets(username: str):
